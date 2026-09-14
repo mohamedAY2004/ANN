@@ -6,10 +6,15 @@ Curated, high-trust sources. Lesson claims should be traceable to something here
 
 ### Core intuition
 
-- [3Blue1Brown: Neural Networks (video series)](https://www.3blue1brown.com/topics/neural-networks)
+- [3Blue1Brown: Neural Networks (video series)](https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi)
   Four short films building from "what is a neuron" to backpropagation calculus. The single best
   visual explanation of gradient descent and backprop that exists. Use for: the geometric feel of
-  weights, layers, cost surfaces and the chain rule.
+  weights, layers, cost surfaces and the chain rule. Watch on YouTube - the 3blue1brown.com
+  site was unreachable when checked on 2026-09-14, so all links here point at the videos.
+  - Ch 1 [But what is a neural network?](https://www.youtube.com/watch?v=aircAruvnKk) - pairs with lesson 0001
+  - Ch 2 [Gradient descent, how neural networks learn](https://www.youtube.com/watch?v=IHZwWFHWa-w) - pairs with lesson 0003
+  - Ch 3 [Backpropagation, intuitively](https://www.youtube.com/watch?v=Ilg3gGewQ5U)
+  - Ch 4 [Backpropagation calculus](https://www.youtube.com/watch?v=tIeHLnjs5U8)
 - [Michael Nielsen, _Neural Networks and Deep Learning_](http://neuralnetworksanddeeplearning.com/)
   Free online book. Chapter 2 is the canonical, readable derivation of backpropagation - the deck's
   four-step BP1-BP4 equations come straight from here. Chapter 4 is a visual proof of universal
@@ -32,7 +37,7 @@ Curated, high-trust sources. Lesson claims should be traceable to something here
   Also on arXiv as [1609.04747](https://arxiv.org/abs/1609.04747). Use for: why each optimizer exists.
 - [Kingma & Ba, _Adam: A Method for Stochastic Optimization_ (2015)](https://arxiv.org/abs/1412.6980)
   The paper the deck cites on slide 128. Section 1 and Algorithm 1 are readable in ten minutes.
-- [Srivastava et al., _Dropout_ (JMLR 2014)](https://jmlr.org/papers/v15/srivastava14a/srivastava14a.pdf)
+- [Srivastava et al., _Dropout_ (JMLR 2014)](https://jmlr.org/papers/v15/srivastava14a.html)
   The original dropout paper. Figure 1 and Section 2 give the "training an ensemble of thinned
   networks" intuition in two pages.
 

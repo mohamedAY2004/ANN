@@ -44,3 +44,23 @@ changed what the lessons say:
 
 **Standing rule from this: do not ship an interactive whose behaviour has not been
 measured.** Two of the four lessons made a claim that the code did not support.
+
+## Verification log (session 2)
+
+**Link check, 2026-09-14.** The learner reported the 3Blue1Brown URL was dead. Checked all 25
+external URLs across every `.md` and `.html` in the workspace with curl. Three genuine breaks:
+
+- `www.3blue1brown.com/lessons/neural-networks` and `.../topics/neural-networks` - connection
+  times out entirely (the apex `3blue1brown.com` 301s to `www.`, which then hangs). Not a wrong
+  path; the host is unreachable. Replaced with the YouTube originals, video IDs confirmed by
+  page title.
+- `jmlr.org/papers/v15/srivastava14a/srivastava14a.pdf` (the dropout paper) - 404. The `v15/`
+  short path serves the abstract page only; the PDF lives under `volume15/`. Switched to the
+  abstract page `jmlr.org/papers/v15/srivastava14a.html`, which links the PDF itself.
+- `stats.stackexchange.com` returns 403 to curl even with a browser user-agent. This is
+  Cloudflare refusing datacenter IPs, not a broken link - it loads fine in a real browser.
+  Left as is. **Any future link check will show this same 403; do not "fix" it.**
+
+**Standing rule, extended:** do not ship an interactive whose behaviour has not been measured -
+and do not ship a citation whose URL has not been fetched. A dead primary source is worse than
+no primary source: it costs the learner trust in every other claim on the page.

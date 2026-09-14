@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 4 · The Keras control panel</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>Lesson 04</span>
+    <span>Artificial Neural Networks</span>
+    <a href="../reference/keras-toolkit.html">Cheat sheet</a>
+  </p>
+  <h1>The Keras control panel</h1>
+  <p class="standfirst">Your deck stops at backpropagation. Everything that makes a model actually
+  work in practice lives in the two hundred lines after that &mdash; and it is all aimed at one
+  enemy.</p>
+</header>
+
+<p><a href="0001-why-networks-need-a-bend.html">Lesson 1</a> left you with an uncomfortable fact: a
+network with enough hidden units can fit <em>any</em> curve. Which means it can fit the curve
+through your training data <strong>including the noise</strong> &mdash; and noise, by definition,
+does not repeat on new data.</p>
+
+<div class="note intuition">
+  <span class="label">The one idea</span>
+  <p>The goal was never to fit the training data. The goal is to perform on data the model has
+  never seen. Everything below is a way of saying: <em>do not trust the training loss.</em> Keras
+  gives you two kinds of tool for this &mdash; <strong>regularizers</strong>, which change the
+  model so it prefers simpler explanations, and <strong>callbacks</strong>, which watch training
+  and intervene while it runs.</p>
+</div>
+
+<h2><span class="num">1</span>See it memorise</h2>
+
+<p>Below: 32 hidden units, 14 noisy training points, trained live. Press <strong>Train</strong>
+with all three tools <em>off</em> and watch the two loss curves separate.</p>
+
+<div class="panel" id="overfit"></div>
+
+<p>The blue training loss falls forever &mdash; of course it does, the model is being rewarded for
+exactly that. The red validation loss falls, bottoms out, and then <strong>climbs</strong>. After
+that turning point every further epoch is making the model <em>worse</em> at its actual job, and
+the training loss never once tells you.</p>
+
+<p>Look at the left panel too. The network stops drawing the smooth dashed truth and starts
+detouring to pass exactly through each dot. That detour <em>is</em> the overfitting.</p>
+
+<p><strong>Now switch the tools on, one at a time, retraining each time:</strong></p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Tool</th><th>What it does to the picture</th><th>Mechanism</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>L2 penalty</strong></td>
+      <td>Curve gets visibly calmer. Final validation loss drops by about a third, and the two
+      curves stay close instead of diverging.</td>
+      <td>Adds the sum of squared weights to the loss. Big weights now <em>cost</em> something, and
+      only sharp wiggles need big weights.</td>
+    </tr>
+    <tr>
+      <td><strong>Dropout</strong></td>
+      <td>Training loss jumps sharply and goes noisy. The wiggle disappears &mdash; but validation
+      barely improves. <strong>Read the note below.</strong></td>
+      <td>Randomly switches off 15% of hidden units each step. No unit can rely on any other, so the
+      network cannot build a fragile private conspiracy to nail one data point.</td>
+    </tr>
+    <tr>
+      <td><strong>Early stopping</strong></td>
+      <td>Training halts at the red line and weights roll back to &ldquo;best&rdquo;. Same benefit
+      as L2, for no thought at all.</td>
+      <td>Watches validation loss, waits <code>patience</code> epochs for an improvement, gives up,
+      and restores the best weights it saw.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note correction">
+  <span class="label">An honest result, and a real lesson</span>
+  <p>Dropout is the weakest of the three <em>on this particular problem</em>, and it is worth
+  understanding why rather than pretending otherwise. Fourteen data points and 32 units is a tiny
+  problem; switching off a sixth of the network on every step is such a strong constraint that the
+  model swings from memorising to <strong>under</strong>fitting. You can watch it happen: the
+  training loss does not just get slightly worse, it jumps by two orders of magnitude.</p>
+  <p>Dropout earns its reputation on large networks with plenty of data, where there is redundancy
+  to exploit. On a small problem, L2 and early stopping are the better tools. <strong>Regularizers
+  are not interchangeable, and more regularization is not better regularization.</strong></p>
+</div>
+
+<p class="ask">Note the detail that generalises, though: every regularizer makes the
+<em>training</em> loss worse. That is the trade being made. If switching one on does not degrade
+your training loss at all, it is not doing anything.</p>
+
+<h2><span class="num">2</span>Regularizers &mdash; set at build time</h2>
+
+<pre><code><span class="c-kw">from</span> tensorflow <span class="c-kw">import</span> keras
+<span class="c-kw">from</span> tensorflow.keras <span class="c-kw">import</span> layers, regularizers
+
+model = keras.Sequential([
+    layers.Dense(<span class="c-str">128</span>, activation=<span class="c-str">'relu'</span>,
+                 kernel_regularizer=regularizers.L2(<span class="c-str">1e-4</span>)),   <span class="c-com"># penalise big weights</span>
+    layers.Dropout(<span class="c-str">0.3</span>),                                  <span class="c-com"># drop 30% of units per step</span>
+    layers.Dense(<span class="c-str">64</span>, activation=<span class="c-str">'relu'</span>),
+    layers.Dropout(<span class="c-str">0.3</span>),
+    layers.Dense(<span class="c-str">1</span>)                                       <span class="c-com"># regression output, no activation</span>
+])</code></pre>
+
+<p>Two things beginners get wrong here:</p>
+
+<ul>
+  <li><code>Dropout</code> is <strong>a layer</strong>, not an argument. It sits <em>after</em> the
+  layer it is thinning. It is automatically inactive at prediction time &mdash; Keras handles that
+  for you, so never try to turn it off by hand.</li>
+  <li><code>kernel_regularizer</code> penalises the <strong>weights</strong>. That is the one you
+  want. <code>bias_regularizer</code> is almost never useful (biases do not cause wiggle), and
+  <code>activity_regularizer</code> penalises the layer's <em>outputs</em>, which is a different
+  and rarer intent.<sup>[1]</sup></li>
+</ul>
+
+<div class="note">
+  <span class="label">The quiet third regularizer</span>
+  <p>Everything in Lesson 2 and 3 also bears on this. A <strong>smaller network</strong> is the
+  most direct regularizer of all &mdash; fewer hinges, less capacity to memorise. Reach for it
+  before you reach for dropout. The deck's habit of stacking large Dense layers by default is a
+  habit worth questioning.</p>
+</div>
+
+<h2><span class="num">3</span>Callbacks &mdash; set at fit time</h2>
+
+<p>A callback is an object Keras calls at fixed moments during training: start of epoch, end of
+batch, end of epoch. That hook is enough to build all of the following.</p>
+
+<pre><code>callbacks = [
+    <span class="c-com"># 1. Stop when validation loss stops improving, and rewind.</span>
+    keras.callbacks.EarlyStopping(
+        monitor=<span class="c-str">'val_loss'</span>,
+        patience=<span class="c-str">10</span>,                  <span class="c-com"># epochs of no improvement to tolerate</span>
+        restore_best_weights=<span class="c-str">True</span>    <span class="c-com"># <- without this you keep the WORST weights</span>
+    ),
+
+    <span class="c-com"># 2. Keep the best model on disk, whatever happens afterwards.</span>
+    keras.callbacks.ModelCheckpoint(
+        <span class="c-str">'best.keras'</span>, monitor=<span class="c-str">'val_loss'</span>, save_best_only=<span class="c-str">True</span>
+    ),
+
+    <span class="c-com"># 3. When progress stalls, take smaller steps instead of giving up.</span>
+    keras.callbacks.ReduceLROnPlateau(
+        monitor=<span class="c-str">'val_loss'</span>, factor=<span class="c-str">0.5</span>, patience=<span class="c-str">5</span>, min_lr=<span class="c-str">1e-6</span>
+    ),
+
+    <span class="c-com"># 4. Log everything for TensorBoard (deck slide 5 promises this).</span>
+    keras.callbacks.TensorBoard(log_dir=<span class="c-str">'./logs'</span>)
+]
+
+model.fit(X_train, y_train,
+          validation_data=(X_val, y_val),   <span class="c-com"># required - callbacks watch val_loss</span>
+          epochs=<span class="c-str">500</span>,                        <span class="c-com"># set it high; EarlyStopping decides the real end</span>
+          callbacks=callbacks)</code></pre>
+
+<div class="note watch">
+  <span class="label">The one that bites everyone</span>
+  <p><code>restore_best_weights</code> defaults to <strong><code>False</code></strong>.<sup>[2]</sup>
+  Leave it off and <code>EarlyStopping</code> waits <code>patience</code> epochs of the model
+  getting worse, then stops and <em>keeps those degraded weights</em>. You get the worst model of
+  the last ten epochs. Always pass <code>restore_best_weights=True</code>.</p>
+</div>
+
+<p>Two consequences worth internalising:</p>
+
+<ul>
+  <li>With <code>EarlyStopping</code> attached, <strong><code>epochs</code> stops being a
+  hyperparameter you tune.</strong> Set it absurdly high and let the callback find the end. That
+  is one fewer thing to guess.</li>
+  <li><code>ReduceLROnPlateau</code> is the direct answer to
+  <a href="0003-optimizers.html">Lesson 3</a>'s last symptom &mdash; loss falls fast, then
+  flattens too high. Big steps got you into the valley; smaller steps get you to the bottom of it.</li>
+</ul>
+
+<h2><span class="num">4</span>Reading the curve &mdash; the whole skill in one table</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>What you see</th><th>Diagnosis</th><th>What to change</th></tr></thead>
+  <tbody>
+    <tr><td>Both losses high and flat</td><td>Underfitting, or nothing is learning</td><td>Bigger model, more epochs, raise the learning rate. Check for dead ReLUs.</td></tr>
+    <tr><td>Train falls, val rises</td><td>Overfitting &mdash; the classic</td><td>Early stopping first (free). Then dropout / L2. Then a smaller model. Then more data.</td></tr>
+    <tr><td>Both fall then flatten too high</td><td>Learning rate now too large</td><td><code>ReduceLROnPlateau</code>.</td></tr>
+    <tr><td>Loss explodes or goes <code>nan</code></td><td>Learning rate far too large</td><td>Divide it by ten. Check your inputs are scaled.</td></tr>
+    <tr><td>Val loss far below train loss</td><td>Usually dropout, not a miracle</td><td>Nothing &mdash; dropout is on during training and off during validation. Expected.</td></tr>
+    <tr><td>Val loss wildly jumpy</td><td>Validation set too small</td><td>More validation data, or a larger batch size.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<div id="quiz"></div>
+<div id="recall"></div>
+
+<footer class="lesson-foot">
+
+  <div class="source-box">
+    <span class="label">Read this next &mdash; primary source</span>
+    <p><a href="https://www.tensorflow.org/tutorials/keras/overfit_and_underfit">TensorFlow,
+    &ldquo;Overfit and underfit&rdquo;</a>. A runnable notebook doing exactly what the simulator
+    above does, on real data, with real Keras. Run it. It is the shortest path from this lesson to
+    your own keyboard. Then skim the
+    <a href="https://keras.io/api/callbacks/">Keras callbacks API index</a> &mdash; there are about
+    fifteen, and knowing they exist is most of the value.</p>
+  </div>
+
+  <p class="ask">Ask me anything. Good follow-ups here: &ldquo;write me a full training script for
+  a regression problem with all of this in it&rdquo;, &ldquo;how do I pick the dropout rate?&rdquo;,
+  &ldquo;what actually is a validation split and how do I choose the size?&rdquo;, &ldquo;show me
+  how to write a custom callback&rdquo;.</p>
+
+  <div class="next-links">
+    <span>&larr; <a href="0003-optimizers.html">Lesson 3</a></span>
+    <span><a href="../reference/keras-toolkit.html">Reference: Keras toolkit</a></span>
+    <span><a href="../reference/activation-functions.html">Reference: activations</a></span>
+    <span><a href="../RESOURCES.md">Resources</a></span>
+  </div>
+
+  <div class="refs">
+    <ol>
+      <li>Keras 3,
+      <a href="https://keras.io/api/layers/regularizers/">Layer weight regularizers</a>.</li>
+      <li>Keras 3,
+      <a href="https://keras.io/api/callbacks/early_stopping/">EarlyStopping</a> &mdash; see the
+      documented default <code>restore_best_weights=False</code>.</li>
+      <li>Srivastava et al. (2014),
+      <a href="https://jmlr.org/papers/v15/srivastava14a/srivastava14a.pdf">Dropout: A Simple Way
+      to Prevent Neural Networks from Overfitting</a>.</li>
+      <li>Stanford CS231n,
+      <a href="https://cs231n.github.io/neural-networks-2/#reg">Regularization</a>.</li>
+    </ol>
+  </div>
+
+</footer>
+
+</main>
+
+<script src="../assets/plot.js"></script>
+<script src="../assets/net1d.js"></script>
+<script src="../assets/overfit.js"></script>
+<script src="../assets/quiz.js"></script>
+<script>
+Overfit.mount('#overfit');
+
+Quiz.mount('#quiz', {
+  title: 'Check yourself',
+  questions: [
+    {
+      q: 'Training loss keeps falling while validation loss has been rising for 20 epochs. What is happening?',
+      options: [
+        'The model is memorising noise that will not repeat on new data',
+        'The learning rate has become far too small for continued progress',
+        'The model lacks the capacity it needs to fit the training data well',
+        'The validation set has been accidentally included in the training set'
+      ],
+      answer: 0,
+      why: 'That divergence is the definition of overfitting. The model is still improving at reproducing its training set, and getting worse at the only thing that matters &mdash; unseen data.'
+    },
+    {
+      q: 'You attach <code>EarlyStopping(monitor=\'val_loss\', patience=10)</code> and nothing else. What do you end up with?',
+      options: [
+        'The weights from ten epochs after the best model, which are worse',
+        'The weights from the exact epoch where validation loss was lowest',
+        'An error, because EarlyStopping always requires a checkpoint file',
+        'The weights from the first epoch, since patience counts from zero'
+      ],
+      answer: 0,
+      why: '<code>restore_best_weights</code> defaults to False. The callback waits ten worsening epochs, then stops and keeps whatever it is holding &mdash; the degraded weights. Always pass <code>restore_best_weights=True</code>.'
+    },
+    {
+      q: 'Why does switching on dropout usually make the <em>training</em> loss worse?',
+      options: [
+        'Because part of the network is switched off during every training step',
+        'Because dropout permanently deletes a random subset of the weight values',
+        'Because dropout also reduces the learning rate at every training step',
+        'Because dropout adds the sum of the squared weights onto the loss'
+      ],
+      answer: 0,
+      why: 'Each training step runs a randomly thinned network, so training performance drops. That is the trade being made: worse on data it has seen, better on data it has not. The squared-weights penalty is L2, a different tool.'
+    },
+    {
+      q: 'Loss falls quickly, then flattens well above the value you need, and stays there. Best tool?',
+      options: [
+        'ReduceLROnPlateau, so the steps shrink once progress has stalled',
+        'Dropout layers, so the network stops relying on individual units',
+        'An L2 kernel regularizer, so the network prefers smaller weights',
+        'EarlyStopping, so training halts as soon as the loss goes flat'
+      ],
+      answer: 0,
+      why: 'A flat-but-too-high loss means the steps are now too big to settle into the minimum &mdash; the optimizer is bouncing around it. Shrinking the learning rate on a plateau is exactly the fix. The other three address overfitting, which is a different symptom.'
+    },
+    {
+      q: 'Your validation loss sits consistently <em>below</em> your training loss. Most likely explanation?',
+      options: [
+        'Dropout is active during training and switched off during validation',
+        'The model has somehow generalised better than it has been trained',
+        'The validation data has been leaked into the training set by mistake',
+        'The learning rate is too high and both metrics are being miscomputed'
+      ],
+      answer: 0,
+      why: 'Keras runs training batches with dropout on and validation with it off, so validation sees the full, stronger network. Training loss is also averaged across an epoch while weights improve. Both effects are normal.'
+    }
+  ]
+});
+
+Recall.mount('#recall', {
+  title: 'Free recall — answer out loud before revealing',
+  items: [
+    {
+      prompt: 'What is the difference between a regularizer and a callback, in one sentence each?',
+      answer: '<strong>Regularizer:</strong> set when you <em>build</em> the model; changes the loss or the architecture so the network prefers simpler solutions (L2, dropout, smaller layers). <strong>Callback:</strong> set when you <em>fit</em> the model; watches metrics between epochs and intervenes &mdash; stopping, saving, or changing the learning rate.'
+    },
+    {
+      prompt: 'Explain L2 regularization without using the word &ldquo;penalty&rdquo;.',
+      answer: 'You add the sum of the squared weights onto the loss, so large weights now cost the model something. Since sharp wiggles in the fitted curve require large weights, the model will only buy a wiggle if the data pays for it with a bigger error reduction. The result is a smoother, less noise-hugging fit.'
+    },
+    {
+      prompt: 'Name the four callbacks from this lesson and what each one watches for.',
+      answer: '<strong>EarlyStopping</strong> &mdash; validation loss stops improving; halts and (with restore_best_weights=True) rewinds. <strong>ModelCheckpoint</strong> &mdash; validation loss hits a new best; writes the model to disk. <strong>ReduceLROnPlateau</strong> &mdash; validation loss plateaus; multiplies the learning rate by a factor. <strong>TensorBoard</strong> &mdash; watches nothing, logs everything for later inspection.'
+    },
+    {
+      prompt: 'Both your training and validation loss are high and flat from epoch one. Walk through what you would check.',
+      answer: 'This is underfitting or a broken setup, not overfitting. Check: are the inputs scaled? Is the learning rate far too low (or so high it diverged instantly)? Is the output activation/loss pairing right for the task? Are the ReLU units dead? Is the model simply too small for the problem? Fix the setup before touching any regularizer &mdash; regularizing an underfitting model makes it worse.'
+    }
+  ]
+});
+</script>
+</body>
+</html>

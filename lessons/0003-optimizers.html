@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 · Why so many optimizers</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>Lesson 03</span>
+    <span>Artificial Neural Networks</span>
+    <a href="../reference/keras-toolkit.html">Keras toolkit</a>
+  </p>
+  <h1>Why so many optimizers</h1>
+  <p class="standfirst">Gradient descent has exactly two bad habits. Momentum fixes the first,
+  adaptive learning rates fix the second, and Adam is the one that does both. That is the entire
+  family tree.</p>
+</header>
+
+<p>Your deck ends on slide 128 with: <em>&ldquo;Adam is a much more efficient way of searching for
+these minimums, so you will see us use it for our code!&rdquo;</em> &mdash; and then shows a graph
+of five algorithms beating each other, unexplained.</p>
+
+<p>Here is the explanation. Start from plain gradient descent, which the deck describes correctly
+on slides 118&ndash;125: measure the slope, take a step downhill, repeat.</p>
+
+<pre><code>&theta; &larr; &theta; &minus; &eta; &nabla;C(&theta;)        <span class="c-com"># eta is the learning rate</span></code></pre>
+
+<p>This rule has two specific, nameable weaknesses. Every optimizer you have heard of is a patch
+for one of them.</p>
+
+<h2><span class="num">1</span>Problem one: it forgets everything it just did</h2>
+
+<p>Each step is computed from the current gradient alone. The optimizer has no memory, so it cannot
+tell the difference between &ldquo;the ground keeps sloping this way, I should build up speed&rdquo;
+and &ldquo;I am bouncing between two walls and getting nowhere.&rdquo;</p>
+
+<p>In practice loss surfaces are full of <em class="term">ravines</em>: directions that are very
+steep across and very shallow along. Plain gradient descent takes big useless steps across the
+ravine and tiny useful ones along it.</p>
+
+<div class="note intuition">
+  <span class="label">Momentum &mdash; the fix</span>
+  <p>Keep a running average of recent gradients and step in <em>that</em> direction instead.
+  Consistent directions accumulate; directions that keep flipping sign cancel themselves out. The
+  usual picture is a ball rolling downhill rather than a hiker recomputing the slope at every
+  footstep.</p>
+</div>
+
+<h2><span class="num">2</span>Problem two: one learning rate for every parameter</h2>
+
+<p>&eta; is a single number applied to all several-million weights. But a weight receiving huge
+gradients and a weight receiving tiny ones need completely different step sizes. Pick &eta; small
+enough to be safe for the steep parameters and the flat ones will barely move in your lifetime;
+pick it large enough for the flat ones and the steep ones explode.</p>
+
+<div class="note intuition">
+  <span class="label">Adaptive rates &mdash; the fix</span>
+  <p>Give <strong>every parameter its own step size</strong>, derived from how large its own
+  gradients have recently been. Divide each update by the root-mean-square of that parameter's
+  recent gradients: big-gradient parameters get damped, small-gradient parameters get amplified.
+  This is <strong>RMSProp</strong>. <em>(Its predecessor AdaGrad summed gradients from the
+  beginning of time, so its step sizes shrank monotonically to zero and training stalled. RMSProp
+  replaced the running sum with a decaying average, which fixed it.)</em><sup>[1]</sup></p>
+</div>
+
+<h2><span class="num">3</span>Adam = both fixes in one</h2>
+
+<p>Momentum tracks the <em>mean</em> of recent gradients. RMSProp tracks the <em>mean square</em>.
+Adam tracks both and divides one by the other &mdash; hence the official description,
+&ldquo;based on adaptive estimation of first-order and second-order moments.&rdquo;<sup>[2]</sup></p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Optimizer</th><th>Remembers direction?</th><th>Per-parameter step?</th><th>In one line</th></tr></thead>
+  <tbody>
+    <tr><td><strong>SGD</strong></td><td>no</td><td>no</td><td>The honest baseline. Still wins on some vision tasks, with tuning.</td></tr>
+    <tr><td><strong>SGD + momentum</strong></td><td>yes</td><td>no</td><td>SGD that builds speed. <code>SGD(momentum=0.9)</code>.</td></tr>
+    <tr><td><strong>RMSProp</strong></td><td>no</td><td>yes</td><td>Rescales each parameter by its own recent gradient size.</td></tr>
+    <tr><td><strong>Adam</strong></td><td>yes</td><td>yes</td><td>Both. The default you should reach for first.</td></tr>
+    <tr><td><strong>AdamW</strong></td><td>yes</td><td>yes</td><td>Adam with weight decay applied correctly. The modern default.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">4</span>Race them</h2>
+
+<p>Below is a ravine &mdash; a bowl twelve times steeper across than along. All four optimizers
+start at the same point with the <strong>same learning rate</strong>, and the update rules are the
+real published ones. Press <strong>Run</strong>.</p>
+
+<div class="panel" id="descent"></div>
+
+<p><strong>What to look for:</strong></p>
+
+<ol>
+  <li><strong>SGD (red)</strong> zig-zags across the ravine while creeping along it. Every one of
+  those zig-zags is wasted work.</li>
+  <li><strong>Momentum (amber)</strong> zig-zags too &mdash; but the side-to-side components keep
+  cancelling while the along-the-floor component accumulates. It overshoots, then comes back.</li>
+  <li><strong>RMSProp (green)</strong> barely zig-zags at all. The steep direction gets big
+  gradients, so it divides by a big number and takes small steps there.</li>
+  <li><strong>Adam (blue)</strong> combines the two &mdash; damped across, fast along.</li>
+</ol>
+
+<p>Now the part worth ten minutes of your attention: <strong>drag the learning rate up</strong> and
+watch them fail in order.</p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Learning rate</th><th>What happens</th></tr></thead>
+  <tbody>
+    <tr><td><strong>0.17</strong></td><td><span style="color:#d1495b">SGD</span> diverges. Its step across the ravine now overshoots to a point <em>further</em> from the floor than it started, and each bounce is bigger than the last.</td></tr>
+    <tr><td><strong>0.32</strong></td><td><span style="color:#e0973c">Momentum</span> diverges too. Momentum bought roughly a factor of two in tolerance &mdash; helpful, but it is still applying one raw step size to a direction that cannot take it.</td></tr>
+    <tr><td><strong>0.40</strong> (slider max)</td><td><span style="color:#3fa06d">RMSProp</span> and <span style="color:#6a8ee8">Adam</span> are still going. Neither breaks anywhere in the slider's range.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>That ordering is the whole argument for adaptive optimizers, in one experiment.</p>
+
+<div class="note intuition">
+  <span class="label">The real reason everyone uses Adam</span>
+  <p>Not that it converges fastest &mdash; often it does not; watch RMSProp's loss hover while
+  SGD's plummets once SGD is in the valley. It is that Adam works <strong>without you tuning
+  it</strong>. On its very first step <code>m&#770;/&radic;v&#770;</code> is exactly
+  <code>&plusmn;1</code>, so Adam moves by <em>exactly the learning rate</em> in every direction
+  &mdash; here, &plusmn;0.08 along both axes, even though the two gradients are &minus;2.55 and
+  +12.6. The learning rate stops meaning &ldquo;how far per unit of gradient&rdquo; and starts
+  meaning &ldquo;how far per step&rdquo;. That is what makes a badly guessed value survivable, and
+  in practice that matters far more than winning a race.</p>
+</div>
+
+<h2><span class="num">5</span>What to actually do</h2>
+
+<pre><code><span class="c-kw">from</span> tensorflow <span class="c-kw">import</span> keras
+
+<span class="c-com"># 99% of the time, start here.</span>
+model.compile(optimizer=<span class="c-str">'adam'</span>, loss=<span class="c-str">'mse'</span>)
+
+<span class="c-com"># Same thing, written out, so you can see the knob that matters.</span>
+model.compile(
+    optimizer=keras.optimizers.Adam(learning_rate=<span class="c-str">0.001</span>),  <span class="c-com"># <- the default</span>
+    loss=<span class="c-str">'mse'</span>
+)</code></pre>
+
+<ul>
+  <li><strong>Default to Adam</strong> at <code>lr=0.001</code>. Change the learning rate before you
+  change the optimizer &mdash; it is by far the higher-leverage knob.</li>
+  <li><strong>Loss is exploding or producing NaN:</strong> learning rate too high. Divide by 10.</li>
+  <li><strong>Loss is falling but glacially:</strong> learning rate too low. Multiply by 3.</li>
+  <li><strong>Loss drops fast then flattens above where you want it:</strong> you need to
+  <em>decay</em> the rate as you go &mdash; which is exactly what <code>ReduceLROnPlateau</code>
+  does, in <a href="0004-keras-control-panel.html">Lesson 4</a>.</li>
+  <li><strong>You need the last fraction of a percent</strong> and have time to tune:
+  <code>SGD(momentum=0.9)</code> with a hand-built schedule still beats Adam on some benchmarks.</li>
+</ul>
+
+<div class="note correction">
+  <span class="label">Worth knowing &mdash; the deck stops in 2015</span>
+  <p>The deck cites Kingma &amp; Ba (2015) and stops. Since then the default has quietly moved to
+  <strong>AdamW</strong>, which fixes how Adam interacts with weight decay (the L2 regularization
+  you will meet in Lesson 4). Plain Adam lets the adaptive scaling eat the decay term; AdamW applies
+  it separately. Use <code>keras.optimizers.AdamW()</code> when you are also regularizing.</p>
+</div>
+
+<hr>
+
+<div id="quiz"></div>
+<div id="recall"></div>
+
+<footer class="lesson-foot">
+
+  <div class="source-box">
+    <span class="label">Read this next &mdash; primary source</span>
+    <p><a href="https://www.ruder.io/optimizing-gradient-descent/">Sebastian Ruder, &ldquo;An
+    overview of gradient descent optimization algorithms&rdquo;</a>. The standard reference, and
+    still the clearest. Read sections 4.1 to 4.6 &mdash; they walk momentum &rarr; AdaGrad &rarr;
+    RMSProp &rarr; Adam in exactly the order this lesson follows, with the equations written out.
+    Skip the parallelism section for now.</p>
+  </div>
+
+  <p class="ask">Ask me anything unclear. Good follow-ups: &ldquo;walk me through one Adam update
+  with real numbers&rdquo;, &ldquo;what is bias correction actually correcting?&rdquo;, &ldquo;what
+  does the batch in <em>mini-batch</em> gradient descent change?&rdquo;</p>
+
+  <div class="next-links">
+    <span>&larr; <a href="0002-activation-functions.html">Lesson 2</a></span>
+    <span>Next &rarr; <a href="0004-keras-control-panel.html">Lesson 4: The Keras control panel</a></span>
+    <span><a href="../reference/keras-toolkit.html">Reference: Keras toolkit</a></span>
+  </div>
+
+  <div class="refs">
+    <ol>
+      <li>Ruder, S. (2016),
+      <a href="https://arxiv.org/abs/1609.04747">An overview of gradient descent optimization
+      algorithms</a>.</li>
+      <li>Kingma &amp; Ba (2015),
+      <a href="https://arxiv.org/abs/1412.6980">Adam: A Method for Stochastic Optimization</a>;
+      wording from <a href="https://keras.io/api/optimizers/adam/">Keras 3 Adam docs</a>.</li>
+      <li>Loshchilov &amp; Hutter (2019),
+      <a href="https://arxiv.org/abs/1711.05101">Decoupled Weight Decay Regularization</a> &mdash;
+      the AdamW paper.</li>
+    </ol>
+  </div>
+
+</footer>
+
+</main>
+
+<script src="../assets/plot.js"></script>
+<script src="../assets/descent.js"></script>
+<script src="../assets/quiz.js"></script>
+<script>
+Descent.mount('#descent');
+
+Quiz.mount('#quiz', {
+  title: 'Check yourself',
+  questions: [
+    {
+      q: 'What problem with plain gradient descent does <em>momentum</em> specifically solve?',
+      options: [
+        'It has no memory, so it re-zig-zags instead of building up speed',
+        'It uses one identical learning rate for every weight in the network',
+        'It can become trapped inside any local minimum it happens to find',
+        'It needs the whole training set loaded before it can take one step'
+      ],
+      answer: 0,
+      why: 'Momentum averages recent gradients. Directions that stay consistent accumulate; directions that keep flipping sign cancel out. The per-parameter learning rate problem is the other one, solved by RMSProp.'
+    },
+    {
+      q: 'RMSProp divides each parameter&rsquo;s update by the root-mean-square of its recent gradients. What does that achieve?',
+      options: [
+        'Each parameter effectively gets its own individually sized step',
+        'Each parameter gets a running memory of its own past directions',
+        'The loss surface becomes convex and therefore far easier to search',
+        'Gradients stop vanishing as they pass backwards through deep stacks'
+      ],
+      answer: 0,
+      why: 'Large recent gradients mean a large divisor and so a damped step; small ones mean an amplified step. That is the per-parameter scaling. Remembering direction is momentum&rsquo;s job, and Adam does both.'
+    },
+    {
+      q: 'Your loss climbs for a few epochs and then prints <code>nan</code>. What is the first thing to change?',
+      options: [
+        'Reduce the learning rate, most simply by dividing it by ten',
+        'Increase the learning rate, so training escapes the bad region',
+        'Add several more hidden layers to increase the model capacity',
+        'Swap the hidden layer activation functions from ReLU to sigmoid'
+      ],
+      answer: 0,
+      why: 'Climbing loss followed by NaN is the classic too-large-step signature: each update overshoots further than the last until the numbers overflow. Cutting the learning rate is the first move, every time.'
+    },
+    {
+      q: 'In the race above, why do Adam and RMSProp survive learning rates that blow up SGD and Momentum?',
+      options: [
+        'They rescale each step by recent gradient size, so steep axes stay damped',
+        'They use a smaller effective learning rate than the slider value shows',
+        'They automatically detect divergence happening and then restart training',
+        'They take many more total steps, which lets each individual step be safer'
+      ],
+      answer: 0,
+      why: 'The steep direction produces large gradients, so the RMS divisor is large there and the step shrinks automatically. SGD applies the raw learning rate to a large gradient, overshoots the valley, and diverges.'
+    }
+  ]
+});
+
+Recall.mount('#recall', {
+  title: 'Free recall — answer out loud before revealing',
+  items: [
+    {
+      prompt: 'Name the two weaknesses of plain gradient descent, and the fix for each.',
+      answer: '(1) <strong>No memory</strong> &mdash; every step is computed from the current gradient alone, so it zig-zags in ravines. Fixed by <strong>momentum</strong>: average recent gradients. (2) <strong>One global learning rate</strong> for every parameter, though different weights need very different step sizes. Fixed by <strong>adaptive rates</strong> (AdaGrad &rarr; RMSProp): divide each update by the RMS of that parameter&rsquo;s own recent gradients.'
+    },
+    {
+      prompt: 'Define Adam in one sentence, using the words <em>first moment</em> and <em>second moment</em>.',
+      answer: 'Adam keeps a decaying average of the gradient (the first moment, which is momentum) and a decaying average of the squared gradient (the second moment, which is RMSProp), bias-corrects both, and steps by the first divided by the square root of the second.'
+    },
+    {
+      prompt: 'Give the real practical reason Adam became the default &mdash; it is not raw speed.',
+      answer: 'Robustness to the learning rate. Because the update is roughly gradient-over-its-own-magnitude, the step size is about the learning rate per step regardless of how big the gradients are. A badly guessed learning rate still trains, where SGD would diverge or crawl.'
+    },
+    {
+      prompt: 'What is AdamW, and when should you prefer it?',
+      answer: 'Adam with <em>decoupled</em> weight decay: the decay term is applied directly to the weights instead of being fed through Adam&rsquo;s adaptive scaling, which otherwise distorts it. Prefer it whenever you are using L2 regularization / weight decay at the same time as Adam.'
+    }
+  ]
+});
+</script>
+</body>
+</html>

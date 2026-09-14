@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 · Why a network needs a bend</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>Lesson 01</span>
+    <span>Artificial Neural Networks</span>
+    <a href="../index.html">Course map</a>
+  </p>
+  <h1>Why a network needs a bend</h1>
+  <p class="standfirst">Depth buys you nothing at all until you break the straight line. This is the
+  one idea the course deck skips &mdash; and everything else rests on it.</p>
+</header>
+
+<p>Your deck spends slides 19&ndash;25 building the perceptron, then slides 27&ndash;38 stacking
+perceptrons into layers, and then slide 41 introduces activation functions like this:</p>
+
+<blockquote class="note">
+  <span class="label">From the deck, slide 41</span>
+  <p>&ldquo;For most use cases however that won&rsquo;t be useful, we&rsquo;ll want to be able to
+  set constraints to our output values, especially in classification tasks.&rdquo;</p>
+</blockquote>
+
+<p>That makes the activation function sound like a <em>formatting step</em> &mdash; something you
+bolt onto the end to squeeze numbers into a tidy range. If that were all it did, you would only
+ever need one, on the output layer.</p>
+
+<p>But the deck puts an activation function on <strong>every hidden layer too</strong> (look at the
+little S-curve glyphs on slide 107). Why? The real answer is not about formatting. It is this:</p>
+
+<div class="note intuition">
+  <span class="label">The one idea</span>
+  <p>Without a non-linearity between them, a stack of layers is <strong>mathematically identical
+  to a single layer</strong>. A hundred-layer network with no activations can only ever draw a
+  straight line. The activation function is not a finishing touch &mdash; it is the only reason
+  depth exists.</p>
+</div>
+
+<h2><span class="num">1</span>The collapse, in three lines</h2>
+
+<p>Take two layers, no activation. Layer one computes <code>z&#8321; = W&#8321;x + b&#8321;</code>.
+Layer two takes that as its input:</p>
+
+<pre><code>y = W&#8322;(W&#8321;x + b&#8321;) + b&#8322;
+  = (W&#8322;W&#8321;)x + (W&#8322;b&#8321; + b&#8322;)
+  =      W'x     +        b'</code></pre>
+
+<p><code>W&#8322;W&#8321;</code> is just another matrix. <code>W&#8322;b&#8321; + b&#8322;</code> is
+just another vector. So your two-layer network <em class="term">is</em> a one-layer network with
+different numbers in it. Add a third layer and it collapses again. Add ninety-seven more and it
+still collapses. You have spent a great deal of compute to fit a straight line.</p>
+
+<p>Now put <em>any</em> non-linear function <code>&sigma;</code> in between:</p>
+
+<pre><code>y = W&#8322; &sigma;(W&#8321;x + b&#8321;) + b&#8322;</code></pre>
+
+<p>There is no algebra that flattens this. The layers stop merging. Depth starts meaning
+something.</p>
+
+<h2><span class="num">2</span>See it collapse</h2>
+
+<p>Below is a real neural network &mdash; one input, <em>N</em> hidden units, one output &mdash;
+trained by actual gradient descent in your browser. The dashed line is the target curve. The solid
+line is what the network currently computes.</p>
+
+<p><strong>Do this in order:</strong></p>
+
+<ol>
+  <li>Leave it on <strong>ReLU</strong> with 8 units. Hit <strong>Train</strong>. Watch it find the curve.</li>
+  <li>Switch activation to <strong>none (linear)</strong>. Train again. Now push hidden units up to 24.
+      <em>It never stops being a straight line.</em> That is the collapse, live.</li>
+  <li>Back to <strong>ReLU</strong>, but drag hidden units down to <strong>1</strong>. Train. You get
+      exactly one bend. Now 2. Two bends. Count them as you go up.</li>
+  <li>Try <strong>tanh</strong> at 8 units &mdash; same job, but the joins are smooth instead of sharp.</li>
+</ol>
+
+<div class="panel" id="net-demo"></div>
+
+<p class="ask">Nothing here is pre-recorded &mdash; the weights really are being updated by
+gradient descent on mean squared error, using Adam, which you will meet properly in Lesson 3.</p>
+
+<h2><span class="num">3</span>What one ReLU actually buys you</h2>
+
+<p>Step 3 above is the thing worth holding on to. A single ReLU unit computes
+<code>max(0, wx + b)</code>: flat until <code>wx + b</code> crosses zero, then a straight ramp. One
+unit is one <em class="term">hinge</em> &mdash; a single bend, at a position the network chooses by
+learning <code>b/w</code>, at an angle it chooses by learning <code>w</code>.</p>
+
+<p>Add the hinges together with the output weights and you get a piecewise-linear curve. Ten hinges,
+ten bends. Enough hinges, placed well, and you can trace any curve you like as closely as you like
+&mdash; the same way a circle drawn with enough short straight segments looks round.</p>
+
+<div class="note intuition">
+  <span class="label">Carry this picture</span>
+  <p>A ReLU network does not learn a smooth formula for your data. It learns <strong>where to put
+  the creases</strong> in a sheet of paper it then folds to match the shape of your problem.</p>
+</div>
+
+<h2><span class="num">4</span>The theorem &mdash; stated properly</h2>
+
+<p>That intuition has a formal name, and your deck gets it wrong.</p>
+
+<div class="note correction">
+  <span class="label">Correction &mdash; deck slide 39</span>
+  <p>The deck says networks can approximate any <strong>convex</strong> continuous function.
+  Drop the word <em>convex</em>. The Universal Approximation Theorem applies to <strong>any</strong>
+  continuous function on a bounded region. This matters: convex functions are bowl shapes, and
+  almost nothing interesting in the real world is a bowl. If the theorem really were limited to
+  convex functions, neural networks would be a curiosity rather than a technology.</p>
+</div>
+
+<p>Stated carefully: a network with a single hidden layer, given enough units and any
+<em>non-polynomial</em> activation function, can approximate any continuous function on a compact
+set to any accuracy you ask for.<sup>[1]</sup> The deck's names &mdash; Lu, Hanin &mdash; belong to
+a later, different version of the result: that you can also get there by keeping the network
+<em>narrow</em> and making it <em>deep</em>.<sup>[2]</sup></p>
+
+<h2><span class="num">5</span>The catch that runs the rest of the course</h2>
+
+<p>Read the theorem again and notice what it does <em>not</em> say. It says a good set of weights
+<strong>exists</strong>. It says nothing whatsoever about you finding them.</p>
+
+<p>That gap is the entire practical discipline of deep learning, and it is why the next three
+lessons exist:</p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>The gap</th><th>The question it raises</th><th>Where we handle it</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Which non-linearity?</td>
+      <td>Some bend the line but strangle the learning signal on the way back.</td>
+      <td><a href="0002-activation-functions.html">Lesson 2</a></td>
+    </tr>
+    <tr>
+      <td>How do we search?</td>
+      <td>Plain gradient descent is slow and easily confused. Hence optimizers.</td>
+      <td><a href="0003-optimizers.html">Lesson 3</a></td>
+    </tr>
+    <tr>
+      <td>Did we find the <em>right</em> weights?</td>
+      <td>Enough hinges to fit any curve means enough hinges to memorise noise.</td>
+      <td><a href="0004-keras-control-panel.html">Lesson 4</a></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<div id="quiz"></div>
+<div id="recall"></div>
+
+<footer class="lesson-foot">
+
+  <div class="source-box">
+    <span class="label">Read this next &mdash; primary source</span>
+    <p><a href="https://www.3blue1brown.com/lessons/neural-networks">3Blue1Brown, &ldquo;But what
+    is a neural network?&rdquo;</a> (19 min). The best visual account of what layers actually do
+    that anyone has made. If you watch one thing this week, watch this. Then, when you want the
+    hinges argument in full, Michael Nielsen's
+    <a href="http://neuralnetworksanddeeplearning.com/chap4.html">visual proof of universal
+    approximation</a> builds a curve out of bumps in front of you.</p>
+  </div>
+
+  <p class="ask">Something here not landing? Ask me. Good questions for this lesson:
+  &ldquo;show me the collapse with actual numbers&rdquo;, &ldquo;why non-polynomial
+  specifically?&rdquo;, &ldquo;what does the fold picture look like with 2 inputs instead of
+  1?&rdquo;</p>
+
+  <div class="next-links">
+    <span>Next &rarr; <a href="0002-activation-functions.html">Lesson 2: Choosing the bend</a></span>
+    <span><a href="../reference/activation-functions.html">Reference: activation cheat sheet</a></span>
+    <span><a href="../MISSION.md">Mission</a></span>
+  </div>
+
+  <div class="refs">
+    <ol>
+      <li>Cybenko (1989); Hornik (1991); Leshno et al. (1993) established the non-polynomial
+      condition. Summary:
+      <a href="https://en.wikipedia.org/wiki/Universal_approximation_theorem">Universal
+      approximation theorem</a>.</li>
+      <li>Lu et al. (2017); Hanin &amp; Sellke (2018) &mdash; the arbitrary-depth, bounded-width
+      version the deck is gesturing at.</li>
+      <li>Stanford CS231n,
+      <a href="https://cs231n.github.io/neural-networks-1/">Neural Networks Part 1</a>.</li>
+    </ol>
+  </div>
+
+</footer>
+
+</main>
+
+<script src="../assets/plot.js"></script>
+<script src="../assets/net1d.js"></script>
+<script src="../assets/quiz.js"></script>
+<script>
+Net1D.mount('#net-demo', {
+  xRange: [-3, 3],
+  yRange: [-1.6, 1.6],
+  target: function (x) { return 0.85 * Math.sin(1.6 * x) + 0.25 * Math.sin(3.1 * x); }
+});
+
+Quiz.mount('#quiz', {
+  title: 'Check yourself',
+  questions: [
+    {
+      q: 'A network has five hidden layers of 64 units each and no activation function anywhere. What can it represent?',
+      options: [
+        'Exactly the same functions one single linear layer can represent',
+        'Any continuous function at all, given enough training epochs run',
+        'Smooth curving shapes, but never sharp corners or hard edges',
+        'Piecewise-linear shapes having at most three hundred twenty bends'
+      ],
+      answer: 0,
+      why: 'The layers multiply together into one matrix and one bias vector. Five layers, fifty, or five hundred &mdash; with no non-linearity it is algebraically a single linear layer, and it draws a straight line.'
+    },
+    {
+      q: 'Deck slide 39 claims networks can approximate any <em>convex</em> continuous function. What is wrong with it?',
+      options: [
+        'Convexity is not required at all; any continuous function qualifies',
+        'The result only holds for networks having two or more hidden layers',
+        'The result requires that the activation function be a polynomial one',
+        'The claim holds for classification problems but never for regression'
+      ],
+      answer: 0,
+      why: 'The theorem covers any continuous function on a bounded region. Restricting it to convex functions would make it nearly worthless, since real-world target functions are rarely bowl-shaped.'
+    },
+    {
+      q: 'The Universal Approximation Theorem guarantees several things. Which of these is NOT one of them?',
+      options: [
+        'That gradient descent will actually manage to find those good weights',
+        'That a wide enough single hidden layer can fit the function closely',
+        'That the approximation error can be driven as small as you require',
+        'That almost any non-polynomial activation function is good enough'
+      ],
+      answer: 0,
+      why: 'It is an existence result. It promises the weights are out there; it says nothing about training reaching them. Closing that gap is what optimizers, activations and regularization are all for.'
+    },
+    {
+      q: 'In a network with one input and N ReLU hidden units, what does each single hidden unit contribute?',
+      options: [
+        'One bend, placed where that unit&rsquo;s own input crosses through zero',
+        'One smooth S-shaped curve, always centred on the origin of the input',
+        'One multiplication of the whole output curve by a learned constant',
+        'One complete copy of the target function the network is learning to fit'
+      ],
+      answer: 0,
+      why: 'ReLU is flat then sloped, with the kink at wx + b = 0. The unit learns where to put its bend and how steep to make it. Sum the bends and you get the piecewise-linear curve you watched appear above.'
+    }
+  ]
+});
+
+Recall.mount('#recall', {
+  title: 'Free recall — answer out loud before revealing',
+  items: [
+    {
+      prompt: 'Why can&rsquo;t you build a curved decision boundary by stacking linear layers?',
+      answer: 'Because composing linear maps gives a linear map: W&#8322;(W&#8321;x + b&#8321;) + b&#8322; = (W&#8322;W&#8321;)x + (W&#8322;b&#8321; + b&#8322;). The stack collapses to one layer, and a linear map can only ever produce a straight line (or a flat plane).'
+    },
+    {
+      prompt: 'State the Universal Approximation Theorem in one correct sentence.',
+      answer: 'A network with one hidden layer, enough units, and a non-polynomial activation can approximate any continuous function on a compact set to arbitrary accuracy. Note: <em>any</em> continuous function &mdash; not just convex ones.'
+    },
+    {
+      prompt: 'The theorem says good weights exist. Name the two things standing between &ldquo;they exist&rdquo; and &ldquo;you have them&rdquo;.',
+      answer: '(1) <strong>Optimization</strong> &mdash; gradient descent has to actually find them, and it is a local, greedy, noisy search. (2) <strong>Generalization</strong> &mdash; a network with enough capacity to fit any curve also has enough capacity to memorise the noise in your training set, so fitting is not the same as learning.'
+    }
+  ]
+});
+</script>
+</body>
+</html>

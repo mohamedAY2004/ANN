@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artificial Neural Networks · Course map</title>
+<link rel="stylesheet" href="assets/course.css">
+<style>
+  .card {
+    display:block; text-decoration:none; color:inherit;
+    border:1px solid var(--rule); border-radius:9px;
+    padding:1.05rem 1.2rem; margin-bottom:.85rem;
+    background:var(--paper-2); transition:border-color .12s, transform .12s;
+  }
+  .card:hover { border-color:var(--accent); transform:translateY(-1px); }
+  .card .n {
+    font-family:ui-sans-serif,system-ui,sans-serif; font-size:.64rem;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
+    font-weight:600;
+  }
+  .card h3 { margin:.3rem 0 .35rem; font-size:1.12rem; }
+  .card p  { margin:0; font-size:.91rem; color:var(--ink-soft); line-height:1.5; }
+  .card .win {
+    display:block; margin-top:.55rem; font-size:.82rem; color:var(--accent);
+    font-family:ui-sans-serif,system-ui,sans-serif;
+  }
+  .spine {
+    background:var(--accent-bg); border-radius:9px;
+    padding:1.15rem 1.3rem; margin:1.8rem 0 2.4rem;
+  }
+  .spine p { margin:0; font-size:1rem; line-height:1.6; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:.85rem; }
+  @media(max-width:520px){ .two-col{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow"><span>Course map</span><span>Samsung Innovation Campus &middot; AI Course</span></p>
+  <h1>Artificial Neural Networks</h1>
+  <p class="standfirst">Four short lessons, each with one idea and one thing you can play with.
+  Work through them in order &mdash; each one answers a question the previous one opened.</p>
+</header>
+
+<div class="spine">
+  <p><strong>The spine of the whole course:</strong> a neural network is a stack of linear
+  transformations separated by non-linearities, trained by walking downhill on an error surface.
+  Every design decision you will ever make &mdash; which activation, which optimizer, which
+  regularizer, which callback &mdash; is an answer to a specific way that process fails.</p>
+</div>
+
+<a class="card" href="lessons/0001-why-networks-need-a-bend.html">
+  <span class="n">Lesson 01 &middot; ~15 min</span>
+  <h3>Why a network needs a bend</h3>
+  <p>Without a non-linearity, a hundred layers collapse into one and can only draw a straight line.
+  Train a real network in the page and watch it happen. Plus: what the Universal Approximation
+  Theorem actually says, and what your deck gets wrong about it.</p>
+  <span class="win">&rarr; You will be able to explain why depth is worthless without activations.</span>
+</a>
+
+<a class="card" href="lessons/0002-activation-functions.html">
+  <span class="n">Lesson 02 &middot; ~15 min</span>
+  <h3>Choosing the bend</h3>
+  <p>Hidden layers and output layers pick activations for opposite reasons. Watch a gradient vanish
+  through ten sigmoid layers, see why ReLU won, and learn the output-layer table that removes all
+  guesswork from the last line of your model.</p>
+  <span class="win">&rarr; You will pick output activation + loss correctly, every time.</span>
+</a>
+
+<a class="card" href="lessons/0003-optimizers.html">
+  <span class="n">Lesson 03 &middot; ~15 min</span>
+  <h3>Why so many optimizers</h3>
+  <p>Gradient descent has exactly two bad habits. Momentum fixes one, adaptive rates fix the other,
+  Adam does both. Race all four down the same ravine and find the learning rate where SGD explodes
+  and Adam shrugs.</p>
+  <span class="win">&rarr; You will know which knob to turn when the loss misbehaves.</span>
+</a>
+
+<a class="card" href="lessons/0004-keras-control-panel.html">
+  <span class="n">Lesson 04 &middot; ~20 min</span>
+  <h3>The Keras control panel</h3>
+  <p>Where your deck stops. Watch a network memorise noise in real time, then switch on L2, dropout
+  and early stopping and watch the gap close. Ends with the table that turns a training curve into
+  a diagnosis.</p>
+  <span class="win">&rarr; You will write a <code>fit()</code> call and justify every argument.</span>
+</a>
+
+<h2><span class="num">&mdash;</span>Reference sheets</h2>
+
+<p>These are the compressed versions, built to be printed and kept beside the keyboard. The lessons
+you do once; these you come back to.</p>
+
+<div class="two-col">
+  <a class="card" href="reference/activation-functions.html" style="margin-bottom:0">
+    <span class="n">Reference</span>
+    <h3>Activation functions</h3>
+    <p>The output-layer decision table, the hidden-layer comparison, the syntax, and a symptom
+    &rarr; fix list.</p>
+  </a>
+  <a class="card" href="reference/keras-toolkit.html" style="margin-bottom:0">
+    <span class="n">Reference</span>
+    <h3>Keras toolkit</h3>
+    <p>Optimizers, regularizers, callbacks, the full script skeleton, and how to read a training
+    curve.</p>
+  </a>
+</div>
+
+<h2><span class="num">&mdash;</span>The workspace</h2>
+
+<ul>
+  <li><a href="MISSION.md"><strong>MISSION.md</strong></a> &mdash; why you are learning this.
+  Currently <em>provisional</em>: read it and correct anything wrong.</li>
+  <li><a href="RESOURCES.md"><strong>RESOURCES.md</strong></a> &mdash; the trusted sources every
+  claim in these lessons traces back to, plus communities worth joining.</li>
+  <li><strong>learning-records/</strong> &mdash; what has been established so far, and why it
+  changes what comes next.</li>
+  <li><strong>assets/</strong> &mdash; the shared stylesheet and the interactive components
+  (<code>net1d.js</code>, <code>descent.js</code>, <code>overfit.js</code>, <code>quiz.js</code>).
+  Every simulation in these lessons is real code running real maths, not an animation.</li>
+</ul>
+
+<div class="note intuition">
+  <span class="label">How to use these</span>
+  <p>Do not read them like slides. Each lesson has a quiz and a free-recall block at the end
+  &mdash; <strong>answer out loud before revealing</strong>. Retrieving something from memory is
+  what makes it stick; re-reading something familiar only makes it <em>feel</em> like it stuck.
+  Come back in a few days and re-run the quizzes; the options reshuffle each time.</p>
+</div>
+
+<p class="ask">I am your teacher for this, not just the author of these pages. Ask me anything that
+does not land, ask for a worked example with real numbers, or ask for the next lesson when you are
+ready.</p>
+
+</main>
+</body>
+</html>

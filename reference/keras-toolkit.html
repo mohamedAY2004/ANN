@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · Keras toolkit</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  .skeleton pre { margin-bottom:0; }
+  .stage { font-family:ui-sans-serif,system-ui,sans-serif; font-size:.66rem;
+           letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
+           font-weight:600; margin:1.8rem 0 .5rem; }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>Reference sheet</span>
+    <span>Artificial Neural Networks</span>
+    <a href="../index.html">Course map</a>
+  </p>
+  <h1>The Keras toolkit</h1>
+  <p class="standfirst">Optimizers, regularizers, callbacks &mdash; and the diagnostic table that
+  tells you which one you need. Built from
+  <a href="../lessons/0003-optimizers.html">Lesson 3</a> and
+  <a href="../lessons/0004-keras-control-panel.html">Lesson 4</a>.</p>
+</header>
+
+<h2><span class="num">1</span>The whole shape of a training script</h2>
+
+<pre><code><span class="c-kw">from</span> tensorflow <span class="c-kw">import</span> keras
+<span class="c-kw">from</span> tensorflow.keras <span class="c-kw">import</span> layers, regularizers, callbacks
+
+<span class="c-com"># ---- 1. BUILD: architecture + regularizers live here ----------------</span>
+model = keras.Sequential([
+    layers.Input(shape=(n_features,)),
+    layers.Dense(<span class="c-str">128</span>, activation=<span class="c-str">'relu'</span>,
+                 kernel_regularizer=regularizers.L2(<span class="c-str">1e-4</span>)),
+    layers.Dropout(<span class="c-str">0.3</span>),
+    layers.Dense(<span class="c-str">64</span>, activation=<span class="c-str">'relu'</span>),
+    layers.Dropout(<span class="c-str">0.3</span>),
+    layers.Dense(<span class="c-str">1</span>)                      <span class="c-com"># <- from the activation cheat sheet</span>
+])
+
+<span class="c-com"># ---- 2. COMPILE: optimizer + loss + what to watch -------------------</span>
+model.compile(
+    optimizer=keras.optimizers.Adam(learning_rate=<span class="c-str">1e-3</span>),
+    loss=<span class="c-str">'mse'</span>,
+    metrics=[<span class="c-str">'mae'</span>]
+)
+
+<span class="c-com"># ---- 3. FIT: callbacks live here ------------------------------------</span>
+history = model.fit(
+    X_train, y_train,
+    validation_data=(X_val, y_val),   <span class="c-com"># callbacks need this to watch val_loss</span>
+    epochs=<span class="c-str">1000</span>,                      <span class="c-com"># deliberately huge; EarlyStopping decides</span>
+    batch_size=<span class="c-str">32</span>,
+    callbacks=[
+        callbacks.EarlyStopping(monitor=<span class="c-str">'val_loss'</span>, patience=<span class="c-str">15</span>,
+                                restore_best_weights=<span class="c-str">True</span>),
+        callbacks.ReduceLROnPlateau(monitor=<span class="c-str">'val_loss'</span>, factor=<span class="c-str">0.5</span>,
+                                    patience=<span class="c-str">5</span>, min_lr=<span class="c-str">1e-6</span>),
+        callbacks.ModelCheckpoint(<span class="c-str">'best.keras'</span>, save_best_only=<span class="c-str">True</span>),
+    ]
+)</code></pre>
+
+<div class="note intuition">
+  <span class="label">The mental model</span>
+  <p><strong>Build</strong> decides what the model <em>can</em> represent.
+  <strong>Compile</strong> decides how it searches.
+  <strong>Fit</strong> decides when to stop, what to save, and when to slow down.
+  Regularizers go in step 1, optimizers in step 2, callbacks in step 3 &mdash; if you can place a
+  tool on that map, you know how to use it.</p>
+</div>
+
+<h2><span class="num">2</span>Optimizers</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Keras</th><th>Default LR</th><th>Momentum?</th><th>Per-parameter?</th><th>When</th></tr></thead>
+  <tbody>
+    <tr><td><code>SGD()</code></td><td>0.01</td><td>no</td><td>no</td><td>Baseline. Needs a hand-tuned schedule to shine.</td></tr>
+    <tr><td><code>SGD(momentum=0.9)</code></td><td>0.01</td><td>yes</td><td>no</td><td>Still state of the art on some vision tasks, if you tune it.</td></tr>
+    <tr><td><code>RMSprop()</code></td><td>0.001</td><td>no</td><td>yes</td><td>Non-stationary problems; was the RNN default for years.</td></tr>
+    <tr><td><code>Adam()</code></td><td><strong>0.001</strong></td><td>yes</td><td>yes</td><td><span style="color:var(--good)">Your default.</span> Robust to a badly guessed LR.</td></tr>
+    <tr><td><code>AdamW()</code></td><td>0.001</td><td>yes</td><td>yes</td><td>Adam with decoupled weight decay. Prefer it when regularizing.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<pre><code>model.compile(optimizer=<span class="c-str">'adam'</span>, loss=<span class="c-str">'mse'</span>)            <span class="c-com"># string form, uses defaults</span>
+model.compile(optimizer=keras.optimizers.Adam(<span class="c-str">3e-4</span>), loss=<span class="c-str">'mse'</span>)  <span class="c-com"># when you need the LR</span></code></pre>
+
+<p><strong>Adam's hyperparameters, and whether to touch them:</strong>
+<code>learning_rate=0.001</code> &mdash; yes, this is the one knob worth tuning.
+<code>beta_1=0.9</code> (momentum decay), <code>beta_2=0.999</code> (RMS decay),
+<code>epsilon=1e-7</code> &mdash; leave all three alone.<sup>[1]</sup></p>
+
+<h2><span class="num">3</span>Regularizers &mdash; build time</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Tool</th><th>Code</th><th>What it does</th><th>Typical</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Fewer units</strong></td>
+      <td><code>Dense(32)</code> not <code>Dense(512)</code></td>
+      <td>Less capacity to memorise. The cheapest, most under-used regularizer.</td>
+      <td>Try first</td>
+    </tr>
+    <tr>
+      <td><strong>L2</strong><br><em>weight decay</em></td>
+      <td><code>kernel_regularizer=regularizers.L2(1e-4)</code></td>
+      <td>Adds <code>l2 &times; &Sigma;w&sup2;</code> to the loss. Big weights cost something, so the fit gets smoother.</td>
+      <td><code>1e-5</code>&hellip;<code>1e-3</code></td>
+    </tr>
+    <tr>
+      <td><strong>L1</strong></td>
+      <td><code>kernel_regularizer=regularizers.L1(1e-5)</code></td>
+      <td>Adds <code>l1 &times; &Sigma;|w|</code>. Drives weights to exactly zero &mdash; sparsity, feature selection.</td>
+      <td>Rare in nets</td>
+    </tr>
+    <tr>
+      <td><strong>Dropout</strong></td>
+      <td><code>layers.Dropout(0.3)</code></td>
+      <td>Zeroes a random 30% of units each training step. Forces redundant, independent features.</td>
+      <td><code>0.2</code>&hellip;<code>0.5</code></td>
+    </tr>
+    <tr>
+      <td><strong>BatchNorm</strong></td>
+      <td><code>layers.BatchNormalization()</code></td>
+      <td>Normalises each layer's inputs. Mainly stabilises and speeds training; regularizes as a side effect.</td>
+      <td>After Dense</td>
+    </tr>
+    <tr>
+      <td><strong>More data</strong></td>
+      <td>&mdash;</td>
+      <td>The only one with no downside. Beats every technique in this table.</td>
+      <td>Always</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note watch">
+  <span class="label">Three things that catch people</span>
+  <ul style="margin-bottom:0">
+    <li><code>Dropout</code> is a <strong>layer</strong>, placed <em>after</em> the layer it thins.
+    Keras disables it automatically at prediction time &mdash; never do that by hand.</li>
+    <li><code>kernel_regularizer</code> penalises weights (what you want).
+    <code>activity_regularizer</code> penalises outputs (a different, rarer intent).
+    <code>bias_regularizer</code> is almost never useful.</li>
+    <li>A regularizer should make your <strong>training</strong> loss slightly worse. If it does
+    not, it is not doing anything.</li>
+  </ul>
+</div>
+
+<h2><span class="num">4</span>Callbacks &mdash; fit time</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Callback</th><th>Key arguments</th><th>Job</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>EarlyStopping</strong></td>
+      <td><code>monitor='val_loss'</code><br><code>patience=15</code><br>
+          <code style="color:var(--bad)">restore_best_weights=True</code></td>
+      <td>Stops when validation stops improving and rewinds to the best epoch. Makes
+      <code>epochs</code> a non-decision.</td>
+    </tr>
+    <tr>
+      <td><strong>ModelCheckpoint</strong></td>
+      <td><code>'best.keras'</code><br><code>save_best_only=True</code><br><code>monitor='val_loss'</code></td>
+      <td>Writes the best model to disk as you go. Survives a crash; survives you continuing to train past the peak.</td>
+    </tr>
+    <tr>
+      <td><strong>ReduceLROnPlateau</strong></td>
+      <td><code>factor=0.5</code><br><code>patience=5</code><br><code>min_lr=1e-6</code></td>
+      <td>Shrinks the learning rate when progress stalls. Use a <em>shorter</em> patience than EarlyStopping, so it gets to try first.</td>
+    </tr>
+    <tr>
+      <td><strong>TensorBoard</strong></td>
+      <td><code>log_dir='./logs'</code></td>
+      <td>Logs everything for the dashboard: <code>tensorboard --logdir ./logs</code></td>
+    </tr>
+    <tr>
+      <td><strong>CSVLogger</strong></td>
+      <td><code>'history.csv'</code></td>
+      <td>Per-epoch metrics to a file. Unglamorous, endlessly useful.</td>
+    </tr>
+    <tr>
+      <td><strong>LambdaCallback</strong></td>
+      <td><code>on_epoch_end=fn</code></td>
+      <td>Any one-off hook without writing a class.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note watch">
+  <span class="label">The default that costs people models</span>
+  <p><code>EarlyStopping(restore_best_weights=</code><strong><code>False</code></strong><code>)</code>
+  is the Keras default.<sup>[2]</sup> Without it you stop <code>patience</code> epochs <em>after</em>
+  the best model and keep the degraded weights. Set it to <code>True</code>. Every time.</p>
+</div>
+
+<h2><span class="num">5</span>Reading the training curve</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>The curve</th><th>Diagnosis</th><th>Do this</th></tr></thead>
+  <tbody>
+    <tr><td>Both high, both flat</td><td>Underfitting / not learning</td><td>Bigger model &middot; higher LR &middot; more epochs &middot; check inputs are scaled &middot; check for dead ReLUs</td></tr>
+    <tr><td>Train &darr;, val &uarr;</td><td>Overfitting</td><td>EarlyStopping &middot; then dropout/L2 &middot; then smaller model &middot; then more data</td></tr>
+    <tr><td>Both &darr; then flat, too high</td><td>LR now too large to settle</td><td>ReduceLROnPlateau</td></tr>
+    <tr><td>Loss &uarr; then <code>nan</code></td><td>LR far too large</td><td>Divide LR by 10 &middot; scale your inputs &middot; check for a bad loss/activation pairing</td></tr>
+    <tr><td>Val &lt; train, consistently</td><td>Normal &mdash; dropout is off during validation</td><td>Nothing</td></tr>
+    <tr><td>Val very jumpy epoch to epoch</td><td>Validation set too small</td><td>More validation data &middot; larger batch size</td></tr>
+    <tr><td>Loss falls, accuracy does not move</td><td>Usually class imbalance</td><td>Check the baseline rate &middot; class weights &middot; a better metric than accuracy</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">6</span>Inspecting what happened</h2>
+
+<pre><code><span class="c-kw">import</span> pandas <span class="c-kw">as</span> pd
+
+pd.DataFrame(history.history).plot()       <span class="c-com"># train vs val, in one line</span>
+
+history.history.keys()                     <span class="c-com"># ['loss','mae','val_loss','val_mae']</span>
+best = min(history.history[<span class="c-str">'val_loss'</span>])   <span class="c-com"># the number that actually matters</span></code></pre>
+
+<footer class="lesson-foot">
+  <div class="next-links">
+    <span><a href="../lessons/0003-optimizers.html">Lesson 3</a></span>
+    <span><a href="../lessons/0004-keras-control-panel.html">Lesson 4</a></span>
+    <span><a href="activation-functions.html">Reference: activations</a></span>
+    <span><a href="../index.html">Course map</a></span>
+  </div>
+  <div class="refs">
+    <ol>
+      <li><a href="https://keras.io/api/optimizers/adam/">Keras 3 &mdash; Adam</a>
+      (signature and defaults).</li>
+      <li><a href="https://keras.io/api/callbacks/early_stopping/">Keras 3 &mdash; EarlyStopping</a>
+      (note the documented default for <code>restore_best_weights</code>).</li>
+      <li><a href="https://keras.io/api/layers/regularizers/">Keras 3 &mdash; Layer weight
+      regularizers</a>.</li>
+      <li><a href="https://www.tensorflow.org/tutorials/keras/overfit_and_underfit">TensorFlow
+      &mdash; Overfit and underfit</a>.</li>
+    </ol>
+  </div>
+</footer>
+
+</main>
+</body>
+</html>

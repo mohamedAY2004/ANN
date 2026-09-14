@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 · Choosing the bend</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>Lesson 02</span>
+    <span>Artificial Neural Networks</span>
+    <a href="../reference/activation-functions.html">Cheat sheet</a>
+  </p>
+  <h1>Choosing the bend</h1>
+  <p class="standfirst">Your deck lists sigmoid, tanh, ReLU and softmax as one menu. They are not
+  one menu. They answer two completely separate questions, and confusing them is the most common
+  way beginners build a broken model.</p>
+</header>
+
+<p><a href="0001-why-networks-need-a-bend.html">Lesson 1</a> established <em>that</em> you need a
+non-linearity. This lesson is about <em>which</em>. And the first move is to notice that
+&ldquo;which activation?&rdquo; is really two questions wearing one coat:</p>
+
+<div class="note intuition">
+  <span class="label">The one idea</span>
+  <p><strong>Hidden layers</strong> and the <strong>output layer</strong> choose activations for
+  opposite reasons. A hidden layer picks one that lets the learning signal travel back through it
+  &mdash; that is an <em>engineering</em> choice, and the answer is almost always ReLU. The output
+  layer picks one that gives the answer the right <em>shape</em> &mdash; that is decided entirely
+  by your task, and you get no freedom at all.</p>
+</div>
+
+<h2><span class="num">1</span>Hidden layers: the gradient has to get home</h2>
+
+<p>Training works by measuring the error at the output and passing blame backwards, layer by layer,
+all the way to the first weight. That is backpropagation, and mechanically it is a long chain of
+multiplications &mdash; the deck writes it on slide 160 as
+<code>&delta;&#737; = (w&#737;&#8314;&sup1;)&#7488; &delta;&#737;&#8314;&sup1; &odot;
+&sigma;&prime;(z&#737;)</code>.</p>
+
+<p>Ignore the notation and read the shape of it. At every single layer, the blame signal gets
+multiplied by <code>&sigma;&prime;</code> &mdash; <strong>the slope of that layer's activation
+function</strong>. Ten layers means ten multiplications.</p>
+
+<p>So the question &ldquo;is this a good hidden activation?&rdquo; becomes a very concrete one:
+<em>what happens to a number multiplied by this function's slope, ten times in a row?</em></p>
+
+<h2><span class="num">2</span>Watch a gradient vanish</h2>
+
+<p>Left plot: the function. Right plot: <strong>its slope</strong> &mdash; the thing that actually
+gets multiplied on the way back. Start on <strong>Sigmoid</strong> and drag the depth slider.</p>
+
+<div class="panel" id="actviz"></div>
+
+<p>The number to sit with: sigmoid's slope never exceeds <strong>0.25</strong>, at exactly one
+point, <code>x = 0</code>. Everywhere else it is smaller. So in the <em>best possible case</em>,
+ten sigmoid layers scale the gradient by 0.25<sup>10</sup> &asymp; 0.00000095.</p>
+
+<p>The first layer of that network is being told to adjust itself by roughly one-millionth of what
+the last layer is told. It is, for practical purposes, frozen. This is the
+<em class="term">vanishing gradient problem</em> &mdash; the reason deep networks were considered
+untrainable for most of the 1990s and 2000s, and the single sentence hiding behind your deck's
+throwaway line on slide 63 that &ldquo;ReLu has been found to have very good performance,
+especially when dealing with the issue of vanishing gradient.&rdquo;</p>
+
+<p>Now click <strong>ReLU</strong>. Its slope on the positive side is exactly <strong>1</strong>.
+Multiply by 1 as many times as you like; nothing shrinks. That is the whole trick.</p>
+
+<div class="note watch">
+  <span class="label">ReLU's one failure mode</span>
+  <p>Look at the left half of ReLU's slope plot: it is <strong>zero</strong>. A unit whose input
+  has drifted negative for every training example receives exactly zero gradient, so it can never
+  update, so it stays negative forever. This is a <em class="term">dead unit</em>, and a large
+  learning rate can kill off a big fraction of a layer in one bad step.<sup>[1]</sup>
+  <strong>Leaky ReLU</strong> exists precisely for this: tilt the flat half slightly, and a dead
+  unit keeps a thin thread back to life.</p>
+</div>
+
+<h2><span class="num">3</span>The output layer: no freedom, just matching</h2>
+
+<p>Hidden layers are an engineering judgement. The output layer is not a judgement at all &mdash;
+it is determined by the question you are asking. And it always travels with a matching loss
+function, because the two are designed as a pair.</p>
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr><th>Your task</th><th>Output layer</th><th>Loss</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Regression</strong><br>predict a house price</td>
+      <td><code>Dense(1)</code><br>no activation</td>
+      <td><code>mse</code></td>
+      <td>The answer is an unbounded number. Squashing it into 0&ndash;1 would be sabotage.</td>
+    </tr>
+    <tr>
+      <td><strong>Binary</strong><br>spam or not spam</td>
+      <td><code>Dense(1, 'sigmoid')</code></td>
+      <td><code>binary_crossentropy</code></td>
+      <td>One number in 0&ndash;1, read as P(yes).</td>
+    </tr>
+    <tr>
+      <td><strong>Multi-class, exclusive</strong><br>which one digit is this</td>
+      <td><code>Dense(10, 'softmax')</code></td>
+      <td><code>categorical_crossentropy</code></td>
+      <td>Ten numbers that <strong>sum to 1</strong>. Raising one must lower the others.</td>
+    </tr>
+    <tr>
+      <td><strong>Multi-label, non-exclusive</strong><br>tag a photo: beach, family, sunset</td>
+      <td><code>Dense(K, 'sigmoid')</code></td>
+      <td><code>binary_crossentropy</code></td>
+      <td>K <strong>independent</strong> yes/no calls. They must not compete.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Rows three and four are where people come unstuck, and they are exactly the distinction your deck
+draws on slides 68&ndash;91 between <em>mutually exclusive</em> and <em>non-exclusive</em>
+classes. The mechanism behind it is simple:</p>
+
+<pre><code><span class="c-com"># softmax: the denominator couples every output together</span>
+softmax(z)&#7522; = e^z&#7522; / <span class="c-kw">&Sigma;</span>&#11388; e^z&#11388;      <span class="c-com"># -> [0.1, 0.6, 0.3]  sums to 1</span>
+
+<span class="c-com"># sigmoid: each output is computed alone, unaware of the others</span>
+sigmoid(z)&#7522; = 1 / (1 + e^-z&#7522;)     <span class="c-com"># -> [0.8, 0.2, 0.3]  sums to anything</span></code></pre>
+
+<p>Use softmax on a photo-tagging model and you have told it that a photo tagged
+<em>beach</em> is therefore less likely to be <em>family</em> &mdash; which is nonsense, and it
+will dutifully learn the nonsense.</p>
+
+<div class="note">
+  <span class="label">Practical note the deck omits</span>
+  <p>In Keras you will often see the output layer left raw (no activation) with
+  <code>from_logits=True</code> passed to the loss instead. Same model, better numerical stability
+  &mdash; the exponential and the logarithm get to cancel inside one function rather than fighting
+  each other across two.<sup>[2]</sup></p>
+</div>
+
+<h2><span class="num">4</span>What to actually do</h2>
+
+<ul>
+  <li><strong>Hidden layers:</strong> start with <code>relu</code>. Always. It is the default for
+  good reason and you need a specific complaint before you change it.</li>
+  <li><strong>Loss stuck and a lot of your units output zero:</strong> suspect dead units. Lower
+  the learning rate first; try <code>LeakyReLU</code> second.</li>
+  <li><strong>Output layer:</strong> read it off the table above. There is no judgement call here.</li>
+  <li><strong>Sigmoid and tanh in hidden layers:</strong> effectively retired for feed-forward
+  networks. You will still meet them <em>inside</em> LSTM and GRU cells, where saturation is being
+  used deliberately as a gate rather than suffered as a side effect.</li>
+</ul>
+
+<hr>
+
+<div id="quiz"></div>
+<div id="recall"></div>
+
+<footer class="lesson-foot">
+
+  <div class="source-box">
+    <span class="label">Read this next &mdash; primary source</span>
+    <p><a href="https://cs231n.github.io/neural-networks-1/#actfun">Stanford CS231n, &ldquo;Commonly
+    used activation functions&rdquo;</a>. Two pages, written by people who train these things for a
+    living, and the source for the dying-ReLU advice above. Their closing recommendation is blunt
+    and worth internalising: use ReLU, watch your learning rates, and try Leaky ReLU if you see
+    dead units.</p>
+  </div>
+
+  <p class="ask">Ask me if anything is unclear. Useful follow-ups here: &ldquo;show me
+  <code>softmax</code> and <code>sigmoid</code> on the same logits with real numbers&rdquo;,
+  &ldquo;what is <code>from_logits</code> really doing?&rdquo;, &ldquo;where do GELU and Swish fit
+  in?&rdquo;</p>
+
+  <div class="next-links">
+    <span>&larr; <a href="0001-why-networks-need-a-bend.html">Lesson 1</a></span>
+    <span>Next &rarr; <a href="0003-optimizers.html">Lesson 3: Why so many optimizers</a></span>
+    <span><a href="../reference/activation-functions.html">Reference: activation cheat sheet</a></span>
+  </div>
+
+  <div class="refs">
+    <ol>
+      <li>Stanford CS231n,
+      <a href="https://cs231n.github.io/neural-networks-1/">Neural Networks Part 1</a> &mdash; dying
+      ReLU and activation trade-offs.</li>
+      <li>Keras 3,
+      <a href="https://keras.io/api/layers/activations/">Layer activations</a> and
+      <a href="https://keras.io/api/losses/probabilistic_losses/">probabilistic losses</a>.</li>
+      <li>Samsung Innovation Campus, <em>Understanding Artificial Neural Networks</em>,
+      slides 51&ndash;91 and 131&ndash;132.</li>
+    </ol>
+  </div>
+
+</footer>
+
+</main>
+
+<script src="../assets/plot.js"></script>
+<script src="../assets/actviz.js"></script>
+<script src="../assets/quiz.js"></script>
+<script>
+ActViz.mount('#actviz');
+
+Quiz.mount('#quiz', {
+  title: 'Check yourself',
+  questions: [
+    {
+      q: 'You are building a model that tags each photo with any of 12 labels &mdash; a photo may be beach <em>and</em> family <em>and</em> sunset at once. What is the output layer?',
+      options: [
+        'Dense(12) with sigmoid, paired with binary crossentropy loss',
+        'Dense(12) with softmax, paired with categorical crossentropy loss',
+        'Dense(1) with sigmoid, paired with binary crossentropy loss here',
+        'Dense(12) with relu, paired with mean squared error loss instead'
+      ],
+      answer: 0,
+      why: 'The labels are non-exclusive, so the twelve decisions must be independent. Sigmoid computes each output alone. Softmax would force them to sum to one, teaching the model that beach makes family less likely.'
+    },
+    {
+      q: 'Sigmoid&rsquo;s derivative peaks at 0.25. What does that fact predict about a deep sigmoid network?',
+      options: [
+        'Early layers get a vanishingly small gradient and barely learn',
+        'Early layers get an exploding gradient and diverge to infinity',
+        'Output layers cannot represent probabilities for any class well',
+        'The network converges faster than an equivalent ReLU network'
+      ],
+      answer: 0,
+      why: 'Backprop multiplies by the slope once per layer. Even at its steepest, 0.25 to the tenth power is about one in a million, so the signal reaching layer one is effectively gone.'
+    },
+    {
+      q: 'Your training loss plateaus early and you find that most hidden units output exactly zero for every input. Best first move?',
+      options: [
+        'Lower the learning rate, and consider switching to Leaky ReLU',
+        'Raise the learning rate, so the stuck units escape more quickly',
+        'Switch every hidden layer over from ReLU across to softmax now',
+        'Add more hidden layers, so the network has more total capacity'
+      ],
+      answer: 0,
+      why: 'That is the dying-ReLU signature. A too-large step pushed those units permanently negative, where ReLU passes zero gradient. A smaller learning rate prevents it; Leaky ReLU gives already-dead units a route back.'
+    },
+    {
+      q: 'Why does a regression output layer usually have no activation function at all?',
+      options: [
+        'Because the target is an unbounded number and must not be squashed',
+        'Because regression targets are always scaled to the range zero to one',
+        'Because gradient descent cannot backpropagate through an output layer',
+        'Because mean squared error already applies its own internal activation'
+      ],
+      answer: 0,
+      why: 'A house price can be 40,000 or 4,000,000. Sigmoid would cap the model at 1 and it could never reach the target. Leaving the output raw and linear lets it produce any real number.'
+    }
+  ]
+});
+
+Recall.mount('#recall', {
+  title: 'Free recall — answer out loud before revealing',
+  items: [
+    {
+      prompt: 'Name the two separate jobs activation functions do, and say who chooses each.',
+      answer: '<strong>Hidden layers:</strong> keep the backprop gradient alive through many multiplications &mdash; an engineering choice, and the answer is ReLU by default. <strong>Output layer:</strong> give the answer the right shape and range &mdash; dictated entirely by the task, with a matching loss function.'
+    },
+    {
+      prompt: 'Explain the vanishing gradient problem in two sentences, using a number.',
+      answer: 'Backpropagation multiplies the error signal by the activation&rsquo;s slope once per layer. Sigmoid&rsquo;s slope never exceeds 0.25, so after ten layers the signal is scaled by at most 0.25&sup1;&#8304; &asymp; 10&#8315;&#8310; &mdash; the early layers are told almost nothing and stop learning.'
+    },
+    {
+      prompt: 'Softmax versus sigmoid on a 5-class output: what is the structural difference?',
+      answer: 'Softmax divides by the sum over all five outputs, so they are coupled and always total 1 &mdash; correct when exactly one class is true. Sigmoid computes each of the five independently, so they can all be high or all be low &mdash; correct when several labels can be true at once.'
+    },
+    {
+      prompt: 'Why is ReLU&rsquo;s flat left half both its greatest strength and its one real weakness?',
+      answer: 'Strength: the positive side has slope exactly 1, so gradients pass through unshrunk however deep the network gets. Weakness: the negative side has slope exactly 0, so a unit pushed permanently negative receives no gradient at all and can never recover &mdash; a dead unit.'
+    }
+  ]
+});
+</script>
+</body>
+</html>

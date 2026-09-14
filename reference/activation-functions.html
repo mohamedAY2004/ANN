@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · Activation functions</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  .glyph { display:block; width:72px; height:40px; }
+  .glyph .frame { fill:none; stroke:var(--rule); stroke-width:1; }
+  .glyph .axis  { stroke:var(--rule); stroke-width:1; }
+  .glyph .fn    { fill:none; stroke:var(--accent); stroke-width:1.8;
+                  stroke-linejoin:round; stroke-linecap:round; }
+  td.gcell { width:80px; padding-right:0; }
+  .decide { border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:1.5rem 0; }
+  .decide-row { display:grid; grid-template-columns: 1.1fr 1.2fr 1.2fr;
+                border-top:1px solid var(--rule); font-size:.84rem;
+                font-family:ui-sans-serif,system-ui,sans-serif; }
+  .decide-row:first-child { border-top:0; background:var(--paper-2);
+                font-size:.66rem; letter-spacing:.1em; text-transform:uppercase;
+                color:var(--ink-faint); font-weight:600; }
+  .decide-row > div { padding:.6rem .75rem; border-left:1px solid var(--rule); }
+  .decide-row > div:first-child { border-left:0; }
+  @media (max-width:520px){ .decide-row{grid-template-columns:1fr}
+    .decide-row > div{border-left:0;border-top:1px dotted var(--rule)}
+    .decide-row > div:first-child{border-top:0} }
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="masthead">
+  <p class="eyebrow">
+    <span>Reference sheet</span>
+    <span>Artificial Neural Networks</span>
+    <a href="../index.html">Course map</a>
+  </p>
+  <h1>Activation functions</h1>
+  <p class="standfirst">One page. Built from
+  <a href="../lessons/0002-activation-functions.html">Lesson 2</a>. Print it and keep it next to
+  the keyboard.</p>
+</header>
+
+<h2><span class="num">1</span>Pick the output layer first &mdash; it is not a choice</h2>
+
+<p>Read your task, read off the row. The activation and the loss are a matched pair; never mix
+rows.</p>
+
+<div class="decide">
+  <div class="decide-row">
+    <div>Task</div><div>Final layer</div><div>Loss</div>
+  </div>
+  <div class="decide-row">
+    <div><strong>Regression</strong><br><span style="color:var(--ink-faint)">any real number</span></div>
+    <div><code>Dense(1)</code><br><span style="color:var(--ink-faint)">no activation</span></div>
+    <div><code>'mse'</code><br><span style="color:var(--ink-faint)">or <code>'mae'</code> if outliers matter</span></div>
+  </div>
+  <div class="decide-row">
+    <div><strong>Binary classification</strong><br><span style="color:var(--ink-faint)">yes / no</span></div>
+    <div><code>Dense(1, 'sigmoid')</code></div>
+    <div><code>'binary_crossentropy'</code></div>
+  </div>
+  <div class="decide-row">
+    <div><strong>Multi-class, exclusive</strong><br><span style="color:var(--ink-faint)">exactly one of K</span></div>
+    <div><code>Dense(K, 'softmax')</code></div>
+    <div><code>'categorical_crossentropy'</code><br><span style="color:var(--ink-faint)">one-hot labels</span></div>
+  </div>
+  <div class="decide-row">
+    <div><strong>Multi-class, exclusive</strong><br><span style="color:var(--ink-faint)">integer labels</span></div>
+    <div><code>Dense(K, 'softmax')</code></div>
+    <div><code>'sparse_categorical_crossentropy'</code></div>
+  </div>
+  <div class="decide-row">
+    <div><strong>Multi-label</strong><br><span style="color:var(--ink-faint)">any number of K</span></div>
+    <div><code>Dense(K, 'sigmoid')</code></div>
+    <div><code>'binary_crossentropy'</code></div>
+  </div>
+</div>
+
+<div class="note watch">
+  <span class="label">The trap</span>
+  <p><strong>Softmax</strong> makes the K outputs compete &mdash; they always sum to 1, so raising
+  one lowers the rest. Correct when exactly one class is true, wrong for tagging.
+  <strong>Sigmoid</strong> computes each output independently. Correct for tagging, wrong when the
+  classes are exclusive.</p>
+</div>
+
+<h2><span class="num">2</span>Hidden layers &mdash; this one <em>is</em> a choice</h2>
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr><th></th><th>Function</th><th>f(x)</th><th>Max slope</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="gcell">
+        <svg class="glyph" viewBox="0 0 72 40" aria-hidden="true">
+          <rect class="frame" x="0.5" y="0.5" width="71" height="39" rx="3"/>
+          <line class="axis" x1="4" y1="20.3" x2="68" y2="20.3"/>
+          <line class="axis" x1="36" y1="4" x2="36" y2="36"/>
+          <polyline class="fn" points="4.0,20.2 8.8,20.1 13.6,19.9 18.4,19.6 23.2,18.9 26.4,18.1 29.6,17.1 32.8,15.7 36.0,14.3 39.2,12.8 42.4,11.5 45.6,10.4 48.8,9.7 53.6,9.0 58.4,8.6 63.2,8.4 68.0,8.3"/>
+        </svg>
+      </td>
+      <td><strong>Sigmoid</strong><br><code>'sigmoid'</code></td>
+      <td><code>1/(1+e&#8315;&#739;)</code><br>range 0&hellip;1</td>
+      <td><strong>0.25</strong></td>
+      <td><span style="color:var(--bad)">Do not use in hidden layers.</span> Kills gradients: 0.25&#8319; after n layers. Output layer only.</td>
+    </tr>
+    <tr>
+      <td class="gcell">
+        <svg class="glyph" viewBox="0 0 72 40" aria-hidden="true">
+          <rect class="frame" x="0.5" y="0.5" width="71" height="39" rx="3"/>
+          <line class="axis" x1="4" y1="20.3" x2="68" y2="20.3"/>
+          <line class="axis" x1="36" y1="4" x2="36" y2="36"/>
+          <polyline class="fn" points="4.0,32.4 13.6,32.4 20.0,32.2 24.8,31.7 28.0,30.5 31.2,28.0 34.4,23.3 36.0,20.3 37.6,17.3 40.8,12.6 44.0,10.1 47.2,8.9 52.0,8.4 58.4,8.2 68.0,8.2"/>
+        </svg>
+      </td>
+      <td><strong>Tanh</strong><br><code>'tanh'</code></td>
+      <td><code>(e&#739;&minus;e&#8315;&#739;)/(e&#739;+e&#8315;&#739;)</code><br>range &minus;1&hellip;1</td>
+      <td><strong>1.0</strong></td>
+      <td>Zero-centred, better than sigmoid, still saturates. Retired from feed-forward nets; lives on inside LSTM/GRU gates.</td>
+    </tr>
+    <tr>
+      <td class="gcell">
+        <svg class="glyph" viewBox="0 0 72 40" aria-hidden="true">
+          <rect class="frame" x="0.5" y="0.5" width="71" height="39" rx="3"/>
+          <line class="axis" x1="4" y1="20.3" x2="68" y2="20.3"/>
+          <line class="axis" x1="36" y1="4" x2="36" y2="36"/>
+          <polyline class="fn" points="4.0,20.3 36.0,20.3 39.2,14.3 42.4,8.2 44.0,5.2"/>
+        </svg>
+      </td>
+      <td><strong>ReLU</strong><br><code>'relu'</code></td>
+      <td><code>max(0, x)</code><br>range 0&hellip;&infin;</td>
+      <td><strong>1.0</strong><br><span style="color:var(--ink-faint)">0 when x&lt;0</span></td>
+      <td><span style="color:var(--good)">The default. Start here.</span> No saturation, trivially cheap. Watch for dead units.</td>
+    </tr>
+    <tr>
+      <td class="gcell">
+        <svg class="glyph" viewBox="0 0 72 40" aria-hidden="true">
+          <rect class="frame" x="0.5" y="0.5" width="71" height="39" rx="3"/>
+          <line class="axis" x1="4" y1="20.3" x2="68" y2="20.3"/>
+          <line class="axis" x1="36" y1="4" x2="36" y2="36"/>
+          <polyline class="fn" points="4.0,26.3 12.0,24.8 20.0,23.3 28.0,21.8 36.0,20.3 39.2,14.3 42.4,8.2 44.0,5.2"/>
+        </svg>
+      </td>
+      <td><strong>Leaky ReLU</strong><br><code>layers.LeakyReLU()</code></td>
+      <td><code>x if x&gt;0 else &alpha;x</code><br>&alpha; default 0.2 in Keras</td>
+      <td><strong>1.0</strong><br><span style="color:var(--ink-faint)">&alpha; when x&lt;0</span></td>
+      <td>ReLU insurance. Reach for it when you have diagnosed dead units, not before.</td>
+    </tr>
+    <tr>
+      <td class="gcell"></td>
+      <td><strong>GELU</strong><br><code>'gelu'</code></td>
+      <td><code>0.5x(1+erf(x/&radic;2))</code></td>
+      <td>&asymp;1.1</td>
+      <td>A smooth ReLU. The standard in transformers. Fine to try; rarely the thing holding you back.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note intuition">
+  <span class="label">Why max slope is the column that matters</span>
+  <p>Backpropagation multiplies the error signal by <code>f&prime;(z)</code> <strong>once per
+  layer</strong>. A max slope below 1 means the signal shrinks every single time. Sigmoid's 0.25
+  compounds to 0.25&sup1;&#8304; &asymp; 10&#8315;&#8310; over ten layers &mdash; the early layers
+  hear nothing. ReLU's 1.0 compounds to 1.0. That single fact is why deep learning works.</p>
+</div>
+
+<h2><span class="num">3</span>Syntax</h2>
+
+<pre><code><span class="c-kw">from</span> tensorflow.keras <span class="c-kw">import</span> layers
+
+layers.Dense(<span class="c-str">64</span>, activation=<span class="c-str">'relu'</span>)          <span class="c-com"># the normal way</span>
+
+layers.Dense(<span class="c-str">64</span>)                                <span class="c-com"># or as a separate layer,</span>
+layers.LeakyReLU(negative_slope=<span class="c-str">0.1</span>)           <span class="c-com"># which LeakyReLU requires</span>
+
+<span class="c-com"># Output layers, straight from the table above</span>
+layers.Dense(<span class="c-str">1</span>)                                 <span class="c-com"># regression</span>
+layers.Dense(<span class="c-str">1</span>, activation=<span class="c-str">'sigmoid'</span>)           <span class="c-com"># binary</span>
+layers.Dense(<span class="c-str">10</span>, activation=<span class="c-str">'softmax'</span>)          <span class="c-com"># 10 exclusive classes</span></code></pre>
+
+<h2><span class="num">4</span>Diagnosis</h2>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Loss stuck; many hidden units output exactly 0</td><td>Dead ReLUs</td><td>Lower the learning rate first. Then Leaky ReLU.</td></tr>
+    <tr><td>Deep net trains far slower than a shallow one</td><td>Vanishing gradient</td><td>ReLU in hidden layers; add BatchNormalization.</td></tr>
+    <tr><td>Predicted probabilities never near 0 or 1</td><td>Missing output activation</td><td>Add sigmoid/softmax, or set <code>from_logits=True</code>.</td></tr>
+    <tr><td>Regression predictions capped around 1.0</td><td>Sigmoid on a regression output</td><td>Remove it. Regression outputs are raw.</td></tr>
+    <tr><td>Multi-label model refuses to predict two tags</td><td>Softmax where sigmoid belongs</td><td>Swap to sigmoid + binary_crossentropy.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<footer class="lesson-foot">
+  <div class="next-links">
+    <span><a href="../lessons/0002-activation-functions.html">Back to Lesson 2</a></span>
+    <span><a href="keras-toolkit.html">Reference: Keras toolkit</a></span>
+    <span><a href="../index.html">Course map</a></span>
+  </div>
+  <div class="refs">
+    <ol>
+      <li><a href="https://keras.io/api/layers/activations/">Keras 3 &mdash; Layer activations</a>
+      (formulas and defaults).</li>
+      <li><a href="https://cs231n.github.io/neural-networks-1/#actfun">CS231n &mdash; Commonly used
+      activation functions</a>.</li>
+    </ol>
+  </div>
+</footer>
+
+</main>
+</body>
+</html>
